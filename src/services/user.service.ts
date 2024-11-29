@@ -1,12 +1,7 @@
+import { User } from '../types/auth.types';
 import { secureStorage } from './storage';
 
 const USER_STORAGE_KEY = 'user_data';
-
-interface User {
-  id: string;
-  email: string;
-  role: 'user' | 'paid_user';
-}
 
 export class UserService {
   async saveUser(userData: User): Promise<void> {
