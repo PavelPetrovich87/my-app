@@ -18,8 +18,7 @@ export interface User {
 
 export type UserRole = 'user' | 'paid_user';
 
-export interface AuthResponse {
-  accessToken: string;
+export interface AuthResponse extends AuthTokens {
   user: {
     id: string;
     email: string;
@@ -31,4 +30,9 @@ export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
 } 

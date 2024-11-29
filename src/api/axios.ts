@@ -2,6 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { authService } from '../services/auth.service';
 import { handleApiError } from '../utils/error.utils';
 import { AuthError } from '../types/error.types';
+import { authApi } from '../api/auth.api';
 
 // Create axios instance
 const apiClient = axios.create({
@@ -34,9 +35,9 @@ const processQueue = (error: unknown | null, token: string | null = null) => {
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     try {
-      const token = await authService.getToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      const tokens = await authService.getTokens();
+      if (tokens?.accessToken) {
+        config.headers.Authorization = `Bearer ${tokens.accessToken}`;
       }
       return config;
     } catch (error) {
@@ -51,23 +52,15 @@ apiClient.interceptors.request.use(
 // Response interceptor
 apiClient.interceptors.response.use(
   (response) => response,
-  async (error: AxiosError) => {
+  async (error) => {
     const originalRequest = error.config;
-    
-    // If there's no config or it's already retried, reject
+
     if (!originalRequest || !error.response) {
       return Promise.reject(handleApiError(error));
     }
 
-    // Handle 401 Unauthorized errors
-    if (error.response.status === 401) {
-      if (originalRequest.url?.includes('/auth/login')) {
-        // If login request failed, pass through
-        return Promise.reject(new AuthError('Invalid credentials'));
-      }
-
+    if (error.response.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
-        // If already refreshing, queue the request
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
@@ -75,29 +68,36 @@ apiClient.interceptors.response.use(
             originalRequest.headers.Authorization = `Bearer ${token}`;
             return apiClient(originalRequest);
           })
-          .catch((err) => {
-            return Promise.reject(err);
-          });
+          .catch((err) => Promise.reject(err));
       }
 
+      originalRequest._retry = true;
       isRefreshing = true;
 
-      // Here you would implement token refresh logic
-      // For now, we'll just handle the error
       try {
-        // Clear auth data and reject with auth error
-        await authService.removeToken();
+        const tokens = await authService.getTokens();
+        if (!tokens?.refreshToken) {
+          throw new AuthError('No refresh token available');
+        }
+
+        const newTokens = await authApi.refreshTokens(tokens.refreshToken);
+        await authService.saveTokens(newTokens);
+
+        apiClient.defaults.headers.common['Authorization'] = `Bearer ${newTokens.accessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newTokens.accessToken}`;
+
+        processQueue(null, newTokens.accessToken);
         isRefreshing = false;
-        processQueue(new AuthError('Session expired'));
-        return Promise.reject(new AuthError('Session expired'));
+
+        return apiClient(originalRequest);
       } catch (refreshError) {
+        processQueue(refreshError, null);
         isRefreshing = false;
-        processQueue(refreshError);
-        return Promise.reject(refreshError);
+        await authService.removeTokens();
+        throw new AuthError('Session expired');
       }
     }
 
-    // Handle other errors
     return Promise.reject(handleApiError(error));
   }
 );

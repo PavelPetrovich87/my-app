@@ -25,10 +25,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const initializeAuth = async () => {
     try {
-      const token = await authService.getToken();
+      const tokens = await authService.getTokens();
       const user = await userService.getUser();
 
-      if (token && user) {
+      if (tokens?.accessToken && user) {
         setState({
           user,
           isAuthenticated: true,
@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (token: string, user: User) => {
     try {
-      await authService.saveToken(token);
+      await authService.saveTokens({ accessToken: token, refreshToken: '' });
       await userService.saveUser(user);
       setState({
         user,
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await authService.removeToken();
+      await authService.removeTokens();
       await userService.removeUser();
       setState({
         user: null,

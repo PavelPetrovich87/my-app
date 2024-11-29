@@ -48,8 +48,11 @@ export const useRegister = () => {
     reset
   } = useApi<AuthResponse>(authApi.register.bind(authApi), {
     onSuccess: async (response) => {
-      // Store token and user data
-      await authService.saveToken(response.accessToken);
+      // Store tokens and user data
+      await authService.saveTokens({
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken
+      });
       await userService.saveUser(response.user);
     },
   });
@@ -88,7 +91,7 @@ export const useLogout = () => {
       await executeLogout();
     } catch (error) {
       // Even if the API call fails, we still want to clear local data
-      await authService.removeToken();
+      await authService.removeTokens();
       await userService.removeUser();
       throw error;
     }

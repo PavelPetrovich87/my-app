@@ -1,18 +1,35 @@
 import { secureStorage } from './storage';
+import { AuthTokens } from '../types/auth.types';
 
-const AUTH_STORAGE_KEY = 'auth_token';
+const TOKEN_KEYS = {
+  ACCESS_TOKEN: 'access_token',
+  REFRESH_TOKEN: 'refresh_token',
+} as const;
 
 export class AuthService {
-  async saveToken(token: string): Promise<void> {
-    await secureStorage.set(AUTH_STORAGE_KEY, token);
+  async saveTokens({ accessToken, refreshToken }: AuthTokens): Promise<void> {
+    await Promise.all([
+      secureStorage.set(TOKEN_KEYS.ACCESS_TOKEN, accessToken),
+      secureStorage.set(TOKEN_KEYS.REFRESH_TOKEN, refreshToken),
+    ]);
   }
 
-  async getToken(): Promise<string | null> {
-    return await secureStorage.get(AUTH_STORAGE_KEY);
+  async getTokens(): Promise<AuthTokens | null> {
+    const [accessToken, refreshToken] = await Promise.all([
+      secureStorage.get(TOKEN_KEYS.ACCESS_TOKEN),
+      secureStorage.get(TOKEN_KEYS.REFRESH_TOKEN),
+    ]);
+
+    if (!accessToken || !refreshToken) return null;
+
+    return { accessToken, refreshToken };
   }
 
-  async removeToken(): Promise<void> {
-    await secureStorage.remove(AUTH_STORAGE_KEY);
+  async removeTokens(): Promise<void> {
+    await Promise.all([
+      secureStorage.remove(TOKEN_KEYS.ACCESS_TOKEN),
+      secureStorage.remove(TOKEN_KEYS.REFRESH_TOKEN),
+    ]);
   }
 }
 
