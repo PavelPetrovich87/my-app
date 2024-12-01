@@ -24,7 +24,7 @@ function ProtectedRoute() {
     if (!isSignedIn && !inAuthGroup) {
       router.replace('/login');
     } else if (isSignedIn && inAuthGroup) {
-      router.replace('/(app)/(tabs)/tabOne');
+      router.replace('/(app)/(tabs)/welcome');
     }
   }, [isSignedIn, segments, isLoading]);
 

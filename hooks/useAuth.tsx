@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 
 // Define the shape of our authentication context
 interface AuthContextType {
@@ -26,10 +28,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const loadAuthState = async () => {
       try {
-        const authState = await AsyncStorage.getItem('auth');
-        setIsSignedIn(authState === 'true');
+        // Use different storage methods based on platform
+        const authState = Platform.OS === 'web'
+          ? await AsyncStorage.getItem('auth')
+          : await SecureStore.getItemAsync('auth');
+        
+        setIsSignedIn(authState ? JSON.parse(authState) : false);
+        
       } catch (error) {
         console.error('Failed to load auth state:', error);
+        setIsSignedIn(false);
       } finally {
         setIsLoading(false);
       }
@@ -39,14 +47,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const signIn = async (credentials: { email: string; password: string }) => {
-    // Mock authentication - in a real app, you'd make an API call here
     if (credentials.email && credentials.password) {
-      // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('Signing in...', Platform.OS);
+      // Store auth state using appropriate method, ensuring string values
+      if (Platform.OS === 'web') {
+        await AsyncStorage.setItem('auth', JSON.stringify(true));
+      } else {
+        await SecureStore.setItemAsync('auth', JSON.stringify(true));
+      }
       
-      // Simple validation - accept any non-empty email/password
       setIsSignedIn(true);
-      await AsyncStorage.setItem('auth', 'true');
       return true;
     }
     return false;
@@ -54,7 +65,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signOut = async () => {
     setIsSignedIn(false);
-    await AsyncStorage.removeItem('auth');
+    // Clear auth state using appropriate method
+    if (Platform.OS === 'web') {
+      await AsyncStorage.removeItem('auth');
+    } else {
+      await SecureStore.deleteItemAsync('auth');
+    }
   };
 
   return (

@@ -5,6 +5,14 @@ export default function TabLayout() {
   return (
     <Tabs>
       <Tabs.Screen
+        name="welcome"
+        options={{
+          title: 'Welcome',
+          tabBarIcon: ({ color }) => 
+            <Ionicons name="home" size={24} color={color} />
+        }}
+      />
+      <Tabs.Screen
         name="tabOne"
         options={{
           title: 'Tab 1',
